@@ -1,4 +1,4 @@
-#!bin/bash
+#! bin/bash
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
@@ -6,11 +6,11 @@ set -e
 echo "=== Checking for existing swap ==="
 CURRENT_SWAP_SIZE_KB=0
 if [ -f /swapfile ]; then
-  CURRENT_SWAP_SIZE_KB=$(ls -l /swapfile | awk '{print $5}' | xarg -I {} expr {} / 1024)
+  CURRENT_SWAP_SIZE_KB=$(ls -l /swapfile | awk '{print $5}' | xargs -I {} expr {} / 1024)
 fi
 
 DESIRED_SWAP_SIZE_KB=2097152
-if [ "CURRENT_SWAP_SIZE_KB" -gt "DESIRED_SWAP_SIZE_KB" ]; then
+if [ "$CURRENT_SWAP_SIZE_KB" -gt "$DESIRED_SWAP_SIZE_KB" ]; then
   echo "!!!"
   echo "!!! WARNING: Existing swap file (/swapfile) is larger than 2GB."
   echo "!!! Current size: $(expr "CURRENT_SWAP_SIZE_KB" / 1024)MB."
@@ -18,14 +18,12 @@ if [ "CURRENT_SWAP_SIZE_KB" -gt "DESIRED_SWAP_SIZE_KB" ]; then
   echo "!!! Script is exiting to prevent unexpected behavior."
   echo "!!!"
   exit 1
-elif [ "CURRENT_SWAP_SIZE_KB" -ne "DESIRED_SWAP_SIZE_KB" ]; then
+elif [ "$CURRENT_SWAP_SIZE_KB" -ne "$DESIRED_SWAP_SIZE_KB" ]; then
   echo "== Swap file is not the desired size or does not exist. Recreating... =="
   
   if swapon --summary | grep -q '/swapfile'; then
     sudo swapoff /swapfile
   fi
-
-  # In case, swap is off, but there is a folder for swapfile
   if [ -f /swapfile ]; then
     sudo rm /swapfile
   fi
@@ -46,30 +44,34 @@ else
   fi
 fi
 
+# Update system and install tools before adding the repo
 echo "=== Updating System and Installing Tools ==="
 sudo dnf update -y
+sudo dnf install -y procps-ng
 
 echo "=== Installing Elasticsearch and Kibana ==="
-sudo rpm --import [https://artifacts.elastic.co/GPG-KEY-elasticsearch](https://artifacts.elastic.co/GPG-KEY-elasticsearch)
+sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
 cat <<EOF | sudo tee /etc/dnf.repos.d/elasticsearch.repo
 [elasticsearch-8.x]
 name=Elasticsearch repository for 8.x packages
-baseurl=[https://artifacts.elastic.co/packages/8.x/yum](https://artifacts.elastic.co/packages/8.x/yum)
+baseurl=https://artifacts.elastic.co/packages/8.x/yum
 gpgcheck=1
-gpgkey=[https://artifacts.elastic.co/GPG-KEY-elasticsearch](https://artifacts.elastic.co/GPG-KEY-elasticsearch)
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
 enabled=1
 autorefresh=1
 type=rpm-md
 EOF
 
-echo "=== Enableing and starting Elasticsearch ==="
+echo "=== Installing Elasticsearch and Kibana ==="
 sudo dnf install -y elasticsearch kibana
 echo "== Setting Elasticsearch heap size to 2G =="
+sudo mkdir -p /etc/elasticsearch/jvm.options.d/
 sudo tee /etc/elasticsearch/jvm.options.d/heap.options > /dev/null <<EOF
 -Xms2g
 -Xmx2g
 EOF
 
+echo "=== Enabling and starting Elasticsearch ==="
 sudo /bin/systemctl daemon-reload
 sudo /bin/systemctl enable elasticsearch.service
 sudo /bin/systemctl start elasticsearch.service
