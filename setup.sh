@@ -51,7 +51,7 @@ sudo dnf install -y procps-ng
 
 echo "=== Installing Elasticsearch and Kibana ==="
 sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
-cat <<EOF | sudo tee /etc/dnf.repos.d/elasticsearch.repo
+cat <<EOF | sudo tee /etc/yum.repos.d/elasticsearch.repo
 [elasticsearch-8.x]
 name=Elasticsearch repository for 8.x packages
 baseurl=https://artifacts.elastic.co/packages/8.x/yum
